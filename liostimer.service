@@ -1,0 +1,17 @@
+[Unit]
+Description=LiosTimer Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/liostimer
+ExecStart=/opt/liostimer/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+EnvironmentFile=/opt/liostimer/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install -r requirements.txt)",
+      "Bash(.venv/Scripts/pip install aiosqlite==0.20.0)",
+      "Bash(find /d/fast-stars -name *.py -type f)",
+      "Bash(grep -r icon_custom_emoji_id /d/fast-stars/src --include=*.py)",
+      "Bash(xargs grep:*)",
+      "Bash(python -c \"from bot.handlers.loot import router; print\\(''OK''\\)\")",
+      "Bash(.venv/Scripts/python -c \"from bot.handlers.loot import router; print\\(''OK''\\)\")",
+      "Bash(find /d/Crypto-ai -path */api* -name *.ts -o -path */api* -name *.py)",
+      "Bash(python -c \":*)",
+      "Bash(.venv/Scripts/pip install:*)"
+    ]
+  }
+}
