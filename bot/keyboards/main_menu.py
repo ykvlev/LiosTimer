@@ -41,6 +41,9 @@ def main_menu(
         [
             InlineKeyboardButton(text=clan_label, callback_data="clan", icon_custom_emoji_id="5453957997418004470"),
         ],
+        [
+            InlineKeyboardButton(text="🛠 Связь с разработчиками", callback_data="support"),
+        ],
     ]
     if is_admin:
         rows.append([InlineKeyboardButton(text="🔧 Админ", callback_data="admin")])

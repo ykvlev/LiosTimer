@@ -27,8 +27,6 @@ def clan_menu_in_clan(
     builder.row(InlineKeyboardButton(text="👥 Участники", callback_data="clan_members"))
     if is_manager:
         builder.row(InlineKeyboardButton(text="⚙️ Настройки клана", callback_data="clan_settings"))
-        if role == "owner":
-            builder.row(InlineKeyboardButton(text="💎 Подписка", callback_data="clan_sub"))
     else:
         builder.row(InlineKeyboardButton(text="🚪 Покинуть клан", callback_data="clan_leave"))
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu"))

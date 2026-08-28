@@ -8,8 +8,6 @@ from bot.handlers import register_all
 from data.database import init_db
 from bot.wipe.scheduler import wipe_scheduler
 from bot.loot.scheduler import loot_scheduler
-from bot.subscription.ton_checker import ton_payment_scheduler
-from bot.subscription.trial_scheduler import trial_reminder_scheduler
 from bot.utils.message_queue import mq
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -25,8 +23,6 @@ async def main():
     asyncio.create_task(mq.run())
     asyncio.create_task(wipe_scheduler())
     asyncio.create_task(loot_scheduler())
-    asyncio.create_task(ton_payment_scheduler(bot))
-    asyncio.create_task(trial_reminder_scheduler(bot))
     await dp.start_polling(bot)
 
 

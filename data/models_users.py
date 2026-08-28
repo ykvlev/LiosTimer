@@ -90,6 +90,13 @@ async def get_user_is_super_admin(user_id: int) -> bool:
             return bool(row and row[0])
 
 
+async def get_admin_ids() -> list[int]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT user_id FROM users WHERE is_admin = 1") as cur:
+            rows = await cur.fetchall()
+            return [r[0] for r in rows]
+
+
 async def set_admin(user_id: int, value: bool):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(

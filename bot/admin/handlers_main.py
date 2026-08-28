@@ -8,6 +8,7 @@ from data.models_users import get_total_users, get_users_today, get_users_week, 
 from data.models_settings import get_global_photo, set_global_photo, delete_global_photo
 from data.models_loot import get_active_cd_stats, LOCATIONS, LOOT_ITEM_LABELS
 from data.models_miniboss import MINIBOSS_ROOMS
+from data.models_support import get_open_tickets_count
 from bot.admin.keyboards_main import admin_main_kb
 from bot.utils.nav import safe_edit_text
 from states.states_admin import AdminMenuPhoto
@@ -192,5 +193,6 @@ async def admin_handler(callback: CallbackQuery, state: FSMContext):
         return
     await state.clear()
     text = await admin_text()
-    await safe_edit_text(callback.message, text, parse_mode="HTML", reply_markup=admin_main_kb())
+    open_tickets = await get_open_tickets_count()
+    await safe_edit_text(callback.message, text, parse_mode="HTML", reply_markup=admin_main_kb(open_tickets))
     await callback.answer()

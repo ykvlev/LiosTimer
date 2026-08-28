@@ -241,6 +241,25 @@ async def init_db():
             )
         """)
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                status     TEXT DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                closed_at  TIMESTAMP
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS support_messages (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id  INTEGER NOT NULL,
+                sender     TEXT NOT NULL,
+                admin_id   INTEGER,
+                text       TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS miniboss_rooms (
                 user_id        INTEGER NOT NULL,
                 location       TEXT NOT NULL,

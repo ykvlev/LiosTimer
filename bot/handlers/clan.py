@@ -45,12 +45,7 @@ from data.models_wipe import (
     WIPE_DURATION_HOURS,
 )
 from states.states_clan import ClanCreate, ClanJoin, ClanServerAdd, ClanSettings
-from data.models_subscription import (
-    get_clan_subscription, get_plan_limit, PLAN_NAMES,
-    PLAN_PRICES_USDT, PLAN_PRICES_STARS,
-    get_user_sub_credit, consume_user_sub_credit, activate_subscription,
-    has_used_trial,
-)
+from data.models_clan import MAX_CLAN_MEMBERS
 
 router = Router()
 
@@ -72,7 +67,7 @@ async def _clan_text(user_id: int) -> tuple[str, object]:
         text = (
             "👥 <b>Клан</b>\n\n"
             "Играй вместе с командой — все участники клана видят общие таймеры.\n\n"
-            "<blockquote>Оформляя подписку, вы поддерживаете проект — помогаете ему жить, развиваться, масштабироваться и становиться всё более полезным для вас и вашей команды! 💙</blockquote>"
+            f"Создание клана бесплатное, до {MAX_CLAN_MEMBERS} участников."
         )
         return text, clan_menu_no_clan()
     role = clan["role"]
@@ -80,17 +75,10 @@ async def _clan_text(user_id: int) -> tuple[str, object]:
     server_label = await _build_server_label(clan["id"])
     role_labels = {"owner": "👑 Лидер", "moderator": "🛡 Модератор", "member": "🧑 Участник"}
     role_label = role_labels.get(role, "🧑 Участник")
-    sub = await get_clan_subscription(clan["id"])
-    if sub:
-        limit = get_plan_limit(sub["plan"])
-        sub_line = f"Подписка: 💎 {PLAN_NAMES[sub['plan']]} (до {sub['expires_at'][:10]})\n"
-    else:
-        sub_line = "Подписка: нет (приглашение участников недоступно)\n"
     text = (
         f"👥 <b>{clan['name']}</b> <code>{clan['tag']}</code>\n\n"
-        f"Участников: {len(members)}\n"
-        f"Твоя роль: {role_label}\n"
-        f"{sub_line}\n"
+        f"Участников: {len(members)}/{MAX_CLAN_MEMBERS}\n"
+        f"Твоя роль: {role_label}\n\n"
         "Поделись тегом клана с друзьями — они смогут вступить."
     )
     return text, clan_menu_in_clan(role=role, server_label=server_label)
@@ -271,29 +259,9 @@ async def clan_create_start(callback: CallbackQuery, state: FSMContext):
     if clan:
         await callback.answer("Ты уже в клане", show_alert=True)
         return
-    credit = await get_user_sub_credit(callback.from_user.id)
-    if not credit:
-        from bot.subscription.keyboards import presub_plans_kb
-        trial_available = not await has_used_trial(callback.from_user.id)
-        text = (
-            "➕ <b>Создание клана</b>\n\n"
-            "Чтобы создать клан и приглашать участников, нужна подписка.\n\n"
-            f"👥 Duo — 2 игрока: {PLAN_PRICES_STARS['duo']} ⭐ / {PLAN_PRICES_USDT['duo']} USDT\n"
-            f"👥 4 игрока: {PLAN_PRICES_STARS['four']} ⭐ / {PLAN_PRICES_USDT['four']} USDT\n"
-            f"♾ До 15 игроков: {PLAN_PRICES_STARS['unlimited']} ⭐ / {PLAN_PRICES_USDT['unlimited']} USDT\n"
-            "💎 <i>Криптой — скидка 15%!</i>"
-        )
-        await safe_edit_text(
-            callback.message,
-            text,
-            reply_markup=presub_plans_kb(show_trial=trial_available),
-        )
-        await callback.answer()
-        return
     await state.set_state(ClanCreate.waiting_name)
     await safe_edit_text(
         callback.message,
-        f"✅ Подписка <b>{PLAN_NAMES[credit['plan']]}</b> оплачена!\n\n"
         "➕ <b>Создание клана</b>\n\nВведи <b>название</b> клана (3–20 символов):",
         reply_markup=clan_cancel_kb(),
     )
@@ -331,20 +299,8 @@ async def clan_create_tag(message: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
     clan = await create_clan(message.from_user.id, data["clan_name"], tag)
-    credit = await consume_user_sub_credit(message.from_user.id)
-    if credit:
-        await activate_subscription(
-            clan["id"], credit["plan"],
-            days=credit["days"], is_trial=credit["is_trial"],
-        )
-        if credit["is_trial"]:
-            sub_text = f"\n🎁 Пробная подписка <b>{PLAN_NAMES[credit['plan']]}</b> активирована на 2 дня!"
-        else:
-            sub_text = f"\n💎 Подписка <b>{PLAN_NAMES[credit['plan']]}</b> активирована!"
-    else:
-        sub_text = ""
     await message.answer(
-        f"✅ Клан <b>{clan['name']}</b> создан!\n\nТег для вступления: <code>{clan['tag']}</code>{sub_text}\n\n"
+        f"✅ Клан <b>{clan['name']}</b> создан!\n\nТег для вступления: <code>{clan['tag']}</code>\n\n"
         "Поделись тегом с друзьями — они смогут вступить.",
         parse_mode="HTML",
         reply_markup=clan_menu_in_clan(role="owner", server_label=None),
@@ -378,22 +334,12 @@ async def clan_join_tag(message: Message, state: FSMContext):
         await message.answer("❗ Ты уже состоишь в клане.")
         await state.clear()
         return
-    sub = await get_clan_subscription(clan["id"])
-    limit = get_plan_limit(sub["plan"] if sub else None)
     members = await get_clan_members(clan["id"])
-    if len(members) >= limit:
-        if sub:
-            await message.answer(
-                f"❗ Клан заполнен ({len(members)}/{limit}).\n"
-                "Лидер должен улучшить подписку.",
-                reply_markup=clan_cancel_kb(),
-            )
-        else:
-            await message.answer(
-                "❗ У клана нет подписки.\n"
-                "Лидер клана должен оформить подписку чтобы приглашать участников.",
-                reply_markup=clan_cancel_kb(),
-            )
+    if len(members) >= MAX_CLAN_MEMBERS:
+        await message.answer(
+            f"❗ Клан заполнен ({len(members)}/{MAX_CLAN_MEMBERS}).",
+            reply_markup=clan_cancel_kb(),
+        )
         return
     await join_clan(message.from_user.id, clan["id"])
     await state.clear()
