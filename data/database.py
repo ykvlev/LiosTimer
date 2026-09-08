@@ -75,7 +75,7 @@ async def init_db():
             "photo3 TEXT", "post_text TEXT", "post_entities TEXT",
             "button_emoji TEXT",
             "launch_at TIMESTAMP", "wipe_days INTEGER",
-            "hidden INTEGER DEFAULT 0",
+            "hidden INTEGER DEFAULT 0", "pinned INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(f"ALTER TABLE prize_servers ADD COLUMN {col_def}")

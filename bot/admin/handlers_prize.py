@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from data.models_prize import (
     get_prize_servers_admin, get_prize_server, add_prize_server,
-    update_prize_server, delete_prize_server, is_expired,
+    update_prize_server, delete_prize_server, set_prize_pinned, is_expired,
     entities_to_json, json_to_entities,
     parse_launch_input, format_launch,
 )
@@ -60,7 +60,12 @@ def prize_list_kb(servers: list[dict]):
 
 
 def _list_label(s: dict) -> str:
-    mark = "🏁" if is_expired(s) else "⚙️"
+    if is_expired(s):
+        mark = "🏁"
+    elif s.get("pinned"):
+        mark = "📌"
+    else:
+        mark = "⚙️"
     label = f"{mark} {s['title']}"
     short = format_launch(s.get("launch_at")).replace(" МСК", "")
     if short != "—":
@@ -85,6 +90,10 @@ def prize_edit_kb(s: dict):
     )
     b.row(InlineKeyboardButton(text="🎨 Эмодзи кнопки", callback_data=f"admin_prize_field_emoji_{server_id}"))
     b.row(InlineKeyboardButton(text="👁 Предпросмотр", callback_data=f"admin_prize_preview_{server_id}"))
+    if s.get("pinned"):
+        b.row(InlineKeyboardButton(text="📌 Открепить", callback_data=f"admin_prize_unpin_{server_id}"))
+    else:
+        b.row(InlineKeyboardButton(text="📌 Закрепить вверху", callback_data=f"admin_prize_pin_{server_id}"))
     b.row(InlineKeyboardButton(text="🗑 Удалить", callback_data=f"admin_prize_del_{server_id}"))
     b.row(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_prize"))
     return b.as_markup()
@@ -529,19 +538,31 @@ async def admin_prize_edit_menu(callback: CallbackQuery, state: FSMContext):
     if not s:
         await callback.answer("Сервер не найден", show_alert=True)
         return
+    await callback.message.edit_text(_edit_menu_text(s), parse_mode="HTML", reply_markup=prize_edit_kb(s))
+    await callback.answer()
+
+
+def _edit_menu_text(s: dict) -> str:
     photos_count = sum(1 for k in ("photo1", "photo2", "photo3") if s.get(k))
     days = s.get("wipe_days")
-    text = (
-        f"⚙️ <b>{s['title']}</b>\n\n"
+    return (
+        f"{'📌' if s.get('pinned') else '⚙️'} <b>{s['title']}</b>\n\n"
         f"💰 Пул: {s.get('prize_pool') or '—'}\n"
         f"📅 Выход: {format_launch(s.get('launch_at'))}\n"
         f"📆 Длительность вайпа: {str(days) + ' дн.' if days else '—'}\n"
         f"🖼 Фото: {photos_count} шт.\n"
-        f"📝 Текст: {'✅ есть' if s.get('post_text') else '—'}"
+        f"📝 Текст: {'✅ есть' if s.get('post_text') else '—'}\n"
+        f"📌 Закреплён: {'да' if s.get('pinned') else 'нет'}"
         + ("\n\n🏁 <i>Вайп закончился — запись скоро удалится.</i>" if is_expired(s) else "")
     )
-    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=prize_edit_kb(s))
-    await callback.answer()
+
+
+async def _rerender_edit_menu(callback: CallbackQuery, server_id: int):
+    s = await get_prize_server(server_id)
+    if not s:
+        await callback.answer("Сервер не найден", show_alert=True)
+        return
+    await callback.message.edit_text(_edit_menu_text(s), parse_mode="HTML", reply_markup=prize_edit_kb(s))
 
 
 @router.callback_query(F.data.startswith("admin_prize_preview_"))
@@ -712,6 +733,30 @@ async def edit_button_emoji_msg(message: Message, state: FSMContext):
         return
     await state.update_data(button_emoji=emoji_id)
     await _show_confirm(message, state)
+
+
+# ── Pin ───────────────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data.startswith("admin_prize_pin_"))
+async def admin_prize_pin(callback: CallbackQuery):
+    if not await is_prize_editor(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещён", show_alert=True)
+        return
+    server_id = int(callback.data.split("_")[-1])
+    await set_prize_pinned(server_id, True)
+    await callback.answer("📌 Закреплён вверху")
+    await _rerender_edit_menu(callback, server_id)
+
+
+@router.callback_query(F.data.startswith("admin_prize_unpin_"))
+async def admin_prize_unpin(callback: CallbackQuery):
+    if not await is_prize_editor(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещён", show_alert=True)
+        return
+    server_id = int(callback.data.split("_")[-1])
+    await set_prize_pinned(server_id, False)
+    await callback.answer("📌 Откреплён")
+    await _rerender_edit_menu(callback, server_id)
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────

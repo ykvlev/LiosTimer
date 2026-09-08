@@ -19,6 +19,8 @@ def _list_kb(servers: list[dict]):
     b = InlineKeyboardBuilder()
     for s in servers:
         label = _strip_custom_emoji(s["title"])
+        if s.get("pinned"):
+            label = f"📌 {label}"
         if s.get("prize_pool"):
             label += f" | {_strip_custom_emoji(s['prize_pool'])}$"
         launch = format_launch_short(s.get("launch_at"))

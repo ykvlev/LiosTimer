@@ -11,7 +11,7 @@ _DT_FMT = "%Y-%m-%d %H:%M:%S"
 
 _COLS = (
     "id, title, prize_pool, photo1, photo2, photo3, post_text, post_entities, "
-    "button_emoji, launch_at, wipe_days, hidden, created_at"
+    "button_emoji, launch_at, wipe_days, hidden, pinned, created_at"
 )
 
 
@@ -104,7 +104,9 @@ def format_launch_short(launch_at: str | None) -> str:
 
 # ── Чтение ────────────────────────────────────────────────────────────────────
 
-_ORDER = "ORDER BY (launch_at IS NULL) ASC, launch_at ASC, id DESC"
+_ORDER = (
+    "ORDER BY COALESCE(pinned, 0) DESC, (launch_at IS NULL) ASC, launch_at ASC, id DESC"
+)
 _NOT_EXPIRED = (
     "(launch_at IS NULL OR wipe_days IS NULL "
     "OR datetime(launch_at, '+' || wipe_days || ' days') > datetime('now'))"
@@ -190,6 +192,15 @@ async def update_prize_server(server_id: int, **fields):
     values = list(fields.values()) + [server_id]
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(f"UPDATE prize_servers SET {set_clause} WHERE id = ?", values)
+        await db.commit()
+
+
+async def set_prize_pinned(server_id: int, pinned: bool):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE prize_servers SET pinned = ? WHERE id = ?",
+            (1 if pinned else 0, server_id),
+        )
         await db.commit()
 
 
