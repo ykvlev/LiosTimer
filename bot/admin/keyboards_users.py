@@ -8,10 +8,15 @@ def admin_users_kb(users: list[dict], page: int, total_pages: int) -> InlineKeyb
     for u in users:
         name = u["first_name"] or "—"
         username = f"@{u['username']}" if u["username"] else "нет юзернейма"
-        crown = "👑 " if u.get("is_admin") else ""
+        if u.get("is_banned"):
+            mark = "🚫 "
+        elif u.get("is_admin"):
+            mark = "👑 "
+        else:
+            mark = ""
         builder.row(
             InlineKeyboardButton(
-                text=f"{crown}{name} | {username}",
+                text=f"{mark}{name} | {username}",
                 callback_data=f"admin_user_{u['user_id']}_{page}",
             )
         )
@@ -73,6 +78,8 @@ def admin_user_profile_kb(
     page: int,
     is_moderator: bool = False,
     can_manage: bool = False,
+    is_staff: bool = False,
+    is_banned: bool = False,
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if can_manage:
@@ -88,6 +95,14 @@ def admin_user_profile_kb(
         else:
             builder.row(InlineKeyboardButton(
                 text="🛡 Выдать модера", callback_data=f"admin_setmod_{user_id}_{page}"))
+    # Банить может любой админ, но не персонал.
+    if not is_staff:
+        if is_banned:
+            builder.row(InlineKeyboardButton(
+                text="✅ Разблокировать", callback_data=f"admin_unban_{user_id}_{page}"))
+        else:
+            builder.row(InlineKeyboardButton(
+                text="🚫 Заблокировать", callback_data=f"admin_ban_{user_id}_{page}"))
     back = "admin_staff" if page == 0 else f"admin_users_{page}"
     builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=back))
     return builder.as_markup()

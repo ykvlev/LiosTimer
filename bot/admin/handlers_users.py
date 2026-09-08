@@ -6,7 +6,7 @@ from config.settings import load_config
 from data.models_users import (
     get_users_page, get_pages_count, search_users, get_user_by_id, set_admin,
     get_user_is_admin, get_user_is_super_admin, get_user_by_username,
-    get_staff, set_moderator,
+    get_staff, set_moderator, set_banned,
 )
 from bot.admin.keyboards_main import admin_main_kb
 from bot.admin.keyboards_users import (
@@ -36,15 +36,20 @@ def _role_of(u: dict) -> str:
     return "👤 Пользователь"
 
 
+def _is_staff(u: dict) -> bool:
+    return bool(u.get("is_admin") or u.get("is_moderator") or u.get("is_super_admin"))
+
+
 def _profile_text(u: dict) -> str:
     name = u["first_name"] or "—"
     username = f"@{u['username']}" if u["username"] else "нет юзернейма"
+    status = "\n🚫 <b>Заблокирован</b>" if u.get("is_banned") else ""
     return (
         f"👤 <b>{name}</b>\n"
         f"🔗 {username}\n"
         f"🆔 <code>{u['user_id']}</code>\n"
         f"📅 Зарегистрирован: {u['created_at'][:10] if u['created_at'] else '—'}\n"
-        f"\nРоль: {_role_of(u)}"
+        f"\nРоль: {_role_of(u)}{status}"
     )
 
 
@@ -59,6 +64,7 @@ async def _render_profile(callback: CallbackQuery, user_id: int, page: int):
         reply_markup=admin_user_profile_kb(
             user_id, bool(u["is_admin"]), page,
             is_moderator=bool(u.get("is_moderator")), can_manage=can_manage,
+            is_staff=_is_staff(u), is_banned=bool(u.get("is_banned")),
         ),
     )
 
@@ -159,6 +165,41 @@ async def admin_unsetmod(callback: CallbackQuery):
     await set_moderator(user_id, False)
     u = await get_user_by_id(user_id)
     await callback.answer(f"❌ У {u['first_name'] or user_id} забраны права модератора", show_alert=True)
+    await _render_profile(callback, user_id, page)
+
+
+@router.callback_query(F.data.startswith("admin_ban_"))
+async def admin_ban(callback: CallbackQuery):
+    if not await is_admin(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещён", show_alert=True)
+        return
+    parts = callback.data.split("_")
+    user_id, page = int(parts[2]), int(parts[3])
+    u = await get_user_by_id(user_id)
+    if not u:
+        await callback.answer("Пользователь не найден", show_alert=True)
+        return
+    if _is_staff(u):
+        await callback.answer("Нельзя заблокировать персонал", show_alert=True)
+        return
+    await set_banned(user_id, True)
+    await callback.answer(f"🚫 {u['first_name'] or user_id} заблокирован", show_alert=True)
+    await _render_profile(callback, user_id, page)
+
+
+@router.callback_query(F.data.startswith("admin_unban_"))
+async def admin_unban(callback: CallbackQuery):
+    if not await is_admin(callback.from_user.id):
+        await callback.answer("⛔ Доступ запрещён", show_alert=True)
+        return
+    parts = callback.data.split("_")
+    user_id, page = int(parts[2]), int(parts[3])
+    u = await get_user_by_id(user_id)
+    if not u:
+        await callback.answer("Пользователь не найден", show_alert=True)
+        return
+    await set_banned(user_id, False)
+    await callback.answer(f"✅ {u['first_name'] or user_id} разблокирован", show_alert=True)
     await _render_profile(callback, user_id, page)
 
 

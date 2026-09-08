@@ -26,6 +26,10 @@ async def init_db():
             await db.execute("ALTER TABLE users ADD COLUMN is_moderator INTEGER DEFAULT 0")
         except Exception:
             pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN is_banned INTEGER DEFAULT 0")
+        except Exception:
+            pass
         for uname in ("KALEN1K",):
             await db.execute(
                 "UPDATE users SET is_super_admin = 1, is_admin = 1 WHERE LOWER(username) = LOWER(?)",

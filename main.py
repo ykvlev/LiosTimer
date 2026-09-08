@@ -5,6 +5,7 @@ from aiogram import Bot, Dispatcher
 
 from config.settings import load_config
 from bot.handlers import register_all
+from bot.middlewares import setup_middlewares
 from data.database import init_db
 from bot.wipe.scheduler import wipe_scheduler
 from bot.loot.scheduler import loot_scheduler
@@ -20,6 +21,7 @@ async def main():
     bot = Bot(token=config.bot_token)
     mq.setup(bot)
     dp = Dispatcher()
+    setup_middlewares(dp)
     register_all(dp)
     asyncio.create_task(mq.run())
     asyncio.create_task(wipe_scheduler())
