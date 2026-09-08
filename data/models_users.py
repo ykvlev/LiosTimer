@@ -53,8 +53,22 @@ async def get_users_page(page: int) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT user_id, username, first_name, is_admin, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            "SELECT user_id, username, first_name, is_admin, is_moderator, is_super_admin, created_at "
+            "FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
             (PER_PAGE, offset),
+        ) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def get_staff() -> list[dict]:
+    """Все, у кого есть роль: супер-админы, админы, модераторы. Админы сверху."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT user_id, username, first_name, is_admin, is_moderator, is_super_admin, created_at "
+            "FROM users WHERE is_admin = 1 OR is_moderator = 1 OR is_super_admin = 1 "
+            "ORDER BY is_super_admin DESC, is_admin DESC, is_moderator DESC, created_at ASC LIMIT 100"
         ) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
@@ -69,7 +83,8 @@ async def get_user_by_id(user_id: int) -> dict | None:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT user_id, username, first_name, is_admin, created_at FROM users WHERE user_id = ?",
+            "SELECT user_id, username, first_name, is_admin, is_moderator, is_super_admin, created_at "
+            "FROM users WHERE user_id = ?",
             (user_id,),
         ) as cur:
             row = await cur.fetchone()
@@ -106,12 +121,31 @@ async def set_admin(user_id: int, value: bool):
         await db.commit()
 
 
+async def get_user_is_moderator(user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT is_moderator FROM users WHERE user_id = ?", (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return bool(row and row[0])
+
+
+async def set_moderator(user_id: int, value: bool):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET is_moderator = ? WHERE user_id = ?",
+            (1 if value else 0, user_id),
+        )
+        await db.commit()
+
+
 async def get_user_by_username(username: str) -> dict | None:
     username = username.lstrip("@")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT user_id, username, first_name, is_admin, created_at FROM users WHERE LOWER(username) = LOWER(?)",
+            "SELECT user_id, username, first_name, is_admin, is_moderator, is_super_admin, created_at "
+            "FROM users WHERE LOWER(username) = LOWER(?)",
             (username,),
         ) as cur:
             row = await cur.fetchone()
@@ -123,7 +157,7 @@ async def search_users(query: str) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            """SELECT user_id, username, first_name, is_admin, created_at FROM users
+            """SELECT user_id, username, first_name, is_admin, is_moderator, is_super_admin, created_at FROM users
                WHERE username LIKE ? OR first_name LIKE ? OR CAST(user_id AS TEXT) LIKE ?
                ORDER BY created_at DESC LIMIT 50""",
             (like, like, like),

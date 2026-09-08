@@ -34,19 +34,62 @@ def admin_users_kb(users: list[dict], page: int, total_pages: int) -> InlineKeyb
     return builder.as_markup()
 
 
-def admin_user_profile_kb(user_id: int, is_admin: bool, page: int) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    if is_admin:
-        builder.row(
-            InlineKeyboardButton(text="❌ Забрать права", callback_data=f"admin_revoke_{user_id}_{page}"),
-        )
+def _staff_label(u: dict) -> str:
+    if u.get("is_super_admin"):
+        role = "⭐"
+    elif u.get("is_admin"):
+        role = "👑"
     else:
+        role = "🛡"
+    name = u["first_name"] or "—"
+    username = f"@{u['username']}" if u["username"] else "нет юзернейма"
+    return f"{role} {name} | {username}"
+
+
+def admin_staff_kb(staff: list[dict]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for u in staff:
         builder.row(
-            InlineKeyboardButton(text="👑 Выдать права", callback_data=f"admin_grant_{user_id}_{page}"),
+            InlineKeyboardButton(
+                text=_staff_label(u),
+                callback_data=f"admin_user_{u['user_id']}_0",
+            )
         )
     builder.row(
-        InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin_users_{page}"),
+        InlineKeyboardButton(text="👑 Выдать админа по @", callback_data="admin_byusername"),
     )
+    builder.row(
+        InlineKeyboardButton(text="🛡 Выдать модера по @", callback_data="admin_modbyusername"),
+    )
+    builder.row(
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel"),
+    )
+    return builder.as_markup()
+
+
+def admin_user_profile_kb(
+    user_id: int,
+    is_admin: bool,
+    page: int,
+    is_moderator: bool = False,
+    can_manage: bool = False,
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if can_manage:
+        if is_admin:
+            builder.row(InlineKeyboardButton(
+                text="❌ Забрать админа", callback_data=f"admin_revoke_{user_id}_{page}"))
+        else:
+            builder.row(InlineKeyboardButton(
+                text="👑 Выдать админа", callback_data=f"admin_grant_{user_id}_{page}"))
+        if is_moderator:
+            builder.row(InlineKeyboardButton(
+                text="❌ Забрать модера", callback_data=f"admin_unsetmod_{user_id}_{page}"))
+        else:
+            builder.row(InlineKeyboardButton(
+                text="🛡 Выдать модера", callback_data=f"admin_setmod_{user_id}_{page}"))
+    back = "admin_staff" if page == 0 else f"admin_users_{page}"
+    builder.row(InlineKeyboardButton(text="⬅️ Назад", callback_data=back))
     return builder.as_markup()
 
 

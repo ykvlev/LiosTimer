@@ -22,6 +22,10 @@ async def init_db():
             await db.execute("ALTER TABLE users ADD COLUMN is_super_admin INTEGER DEFAULT 0")
         except Exception:
             pass
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN is_moderator INTEGER DEFAULT 0")
+        except Exception:
+            pass
         for uname in ("KALEN1K",):
             await db.execute(
                 "UPDATE users SET is_super_admin = 1, is_admin = 1 WHERE LOWER(username) = LOWER(?)",
@@ -66,6 +70,8 @@ async def init_db():
             "prize_pool TEXT", "photo1 TEXT", "photo2 TEXT",
             "photo3 TEXT", "post_text TEXT", "post_entities TEXT",
             "button_emoji TEXT",
+            "launch_at TIMESTAMP", "wipe_days INTEGER",
+            "hidden INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(f"ALTER TABLE prize_servers ADD COLUMN {col_def}")

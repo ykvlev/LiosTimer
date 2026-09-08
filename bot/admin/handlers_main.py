@@ -4,7 +4,10 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config.settings import load_config
-from data.models_users import get_total_users, get_users_today, get_users_week, get_user_is_admin
+from data.models_users import (
+    get_total_users, get_users_today, get_users_week,
+    get_user_is_admin, get_user_is_moderator,
+)
 from data.models_settings import get_global_photo, set_global_photo, delete_global_photo
 from data.models_loot import get_active_cd_stats, LOCATIONS, LOOT_ITEM_LABELS
 from data.models_miniboss import MINIBOSS_ROOMS
@@ -188,11 +191,21 @@ async def admin_cd_stats_handler(callback: CallbackQuery):
 @router.callback_query(F.data == "admin")
 @router.callback_query(F.data == "admin_panel")
 async def admin_handler(callback: CallbackQuery, state: FSMContext):
-    if not await is_admin(callback.from_user.id):
+    full = await is_admin(callback.from_user.id)
+    is_mod = full or await get_user_is_moderator(callback.from_user.id)
+    if not is_mod:
         await callback.answer("⛔ Доступ запрещён", show_alert=True)
         return
     await state.clear()
-    text = await admin_text()
-    open_tickets = await get_open_tickets_count()
-    await safe_edit_text(callback.message, text, parse_mode="HTML", reply_markup=admin_main_kb(open_tickets))
+    if full:
+        text = await admin_text()
+        open_tickets = await get_open_tickets_count()
+        await safe_edit_text(callback.message, text, parse_mode="HTML",
+                             reply_markup=admin_main_kb(open_tickets, full=True))
+    else:
+        await safe_edit_text(
+            callback.message,
+            "🛡 <b>Панель модератора</b>\n\nДоступно управление призовыми серверами.",
+            parse_mode="HTML", reply_markup=admin_main_kb(full=False),
+        )
     await callback.answer()
