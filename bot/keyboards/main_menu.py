@@ -8,6 +8,7 @@ def main_menu(
     active_server: dict | None = None,
     clan_name: str | None = None,
     clan_server_label: str | None = None,
+    is_moderator: bool = False,
 ) -> InlineKeyboardMarkup:
     clan_label = clan_name if clan_name else "Вступить в клан"
 
@@ -41,7 +42,12 @@ def main_menu(
         [
             InlineKeyboardButton(text=clan_label, callback_data="clan", icon_custom_emoji_id="5453957997418004470"),
         ],
+        [
+            InlineKeyboardButton(text="🛠 Связь с разработчиками", callback_data="support"),
+        ],
     ]
     if is_admin:
         rows.append([InlineKeyboardButton(text="🔧 Админ", callback_data="admin")])
+    elif is_moderator:
+        rows.append([InlineKeyboardButton(text="🛡 Модерка", callback_data="admin")])
     return InlineKeyboardMarkup(inline_keyboard=rows)

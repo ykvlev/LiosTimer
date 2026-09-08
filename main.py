@@ -5,11 +5,11 @@ from aiogram import Bot, Dispatcher
 
 from config.settings import load_config
 from bot.handlers import register_all
+from bot.middlewares import setup_middlewares
 from data.database import init_db
 from bot.wipe.scheduler import wipe_scheduler
 from bot.loot.scheduler import loot_scheduler
-from bot.subscription.ton_checker import ton_payment_scheduler
-from bot.subscription.trial_scheduler import trial_reminder_scheduler
+from bot.prize.scheduler import prize_scheduler
 from bot.utils.message_queue import mq
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -21,12 +21,12 @@ async def main():
     bot = Bot(token=config.bot_token)
     mq.setup(bot)
     dp = Dispatcher()
+    setup_middlewares(dp)
     register_all(dp)
     asyncio.create_task(mq.run())
     asyncio.create_task(wipe_scheduler())
     asyncio.create_task(loot_scheduler())
-    asyncio.create_task(ton_payment_scheduler(bot))
-    asyncio.create_task(trial_reminder_scheduler(bot))
+    asyncio.create_task(prize_scheduler())
     await dp.start_polling(bot)
 
 

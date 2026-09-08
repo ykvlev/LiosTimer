@@ -11,3 +11,7 @@ class AdminMenuPhoto(StatesGroup):
 
 class AdminGrantByUsername(StatesGroup):
     waiting_username = State()
+
+
+class AdminGrantModByUsername(StatesGroup):
+    waiting_username = State()

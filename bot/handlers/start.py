@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 
 from bot.keyboards.main_menu import main_menu
 from config.settings import load_config
-from data.models_users import save_user, get_user_is_admin, get_total_users
+from data.models_users import save_user, get_user_is_admin, get_user_is_moderator, get_total_users
 from data.models_wipe import get_active_server
 from data.models_settings import get_global_photo
 from data.models_clan import get_user_clan, get_clan_server_id, get_clan_photo
@@ -46,7 +46,9 @@ async def _send_main_menu(target, user_id: int, is_admin: bool):
     clan = await get_user_clan(user_id)
     clan_name = clan["name"] if clan else None
     clan_srv = await _clan_server_label(clan)
-    kb = main_menu(is_admin=is_admin, active_server=active, clan_name=clan_name, clan_server_label=clan_srv)
+    is_mod = (not is_admin) and await get_user_is_moderator(user_id)
+    kb = main_menu(is_admin=is_admin, active_server=active, clan_name=clan_name,
+                   clan_server_label=clan_srv, is_moderator=is_mod)
     photo = await _get_menu_photo(clan)
     text = await _welcome_text()
     if photo:
@@ -73,7 +75,9 @@ async def back_to_main(callback: CallbackQuery):
     clan = await get_user_clan(callback.from_user.id)
     clan_name = clan["name"] if clan else None
     clan_srv = await _clan_server_label(clan)
-    kb = main_menu(is_admin=is_admin, active_server=active, clan_name=clan_name, clan_server_label=clan_srv)
+    is_mod = (not is_admin) and await get_user_is_moderator(callback.from_user.id)
+    kb = main_menu(is_admin=is_admin, active_server=active, clan_name=clan_name,
+                   clan_server_label=clan_srv, is_moderator=is_mod)
     photo = await _get_menu_photo(clan)
     text = await _welcome_text()
     try:

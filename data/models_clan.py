@@ -2,6 +2,8 @@ import aiosqlite
 
 from data.database import DB_PATH
 
+MAX_CLAN_MEMBERS = 15
+
 
 async def get_user_clan(user_id: int) -> dict | None:
     async with aiosqlite.connect(DB_PATH) as db:

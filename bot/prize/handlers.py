@@ -4,7 +4,9 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, InputMediaPhoto, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from data.models_prize import get_prize_servers, get_prize_server, json_to_entities
+from data.models_prize import (
+    get_prize_servers, get_prize_server, json_to_entities, format_launch_short,
+)
 
 router = Router()
 
@@ -17,8 +19,13 @@ def _list_kb(servers: list[dict]):
     b = InlineKeyboardBuilder()
     for s in servers:
         label = _strip_custom_emoji(s["title"])
+        if s.get("pinned"):
+            label = f"📌 {label}"
         if s.get("prize_pool"):
             label += f" | {_strip_custom_emoji(s['prize_pool'])}$"
+        launch = format_launch_short(s.get("launch_at"))
+        if launch:
+            label += f" · {launch}"
         btn_kwargs = {"text": label, "callback_data": f"prize_view_{s['id']}"}
         if s.get("button_emoji"):
             btn_kwargs["icon_custom_emoji_id"] = s["button_emoji"]
